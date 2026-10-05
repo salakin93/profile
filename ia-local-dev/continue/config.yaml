@@ -1,0 +1,72 @@
+# Configuración de Continue (extensión de VS Code / JetBrains) para el POC.
+# Se copia a %USERPROFILE%\.continue\config.yaml con scripts\instalar.ps1
+name: IA Local POC
+version: 1.0.0
+schema: v1
+
+models:
+  # Chat, edición y modo agente (crea archivos en el proyecto).
+  - name: dev-coder (Qwen2.5-Coder 7B)
+    provider: ollama
+    model: dev-coder
+    roles: [chat, edit, apply]
+    capabilities: [tool_use]
+    defaultCompletionOptions:
+      contextLength: 8192
+      maxTokens: 4096
+
+  # Autocompletado en línea (tab). Modelo pequeño para que sea rápido en CPU.
+  - name: Autocompletado (Qwen2.5-Coder 1.5B)
+    provider: ollama
+    model: qwen2.5-coder:1.5b-base
+    roles: [autocomplete]
+    autocompleteOptions:
+      debounceDelay: 400
+      maxPromptTokens: 1024
+
+  # Embeddings para que el chat pueda buscar en tu código (@codebase).
+  - name: Nomic Embed
+    provider: ollama
+    model: nomic-embed-text
+    roles: [embed]
+
+context:
+  - provider: code
+  - provider: file
+  - provider: currentFile
+  - provider: codebase
+  - provider: folder
+  - provider: diff
+  - provider: terminal
+
+rules:
+  - Responde en español; nombres de clases, métodos y variables en inglés.
+  - Para un CRUD genera modelo, DTOs, repositorio, servicio, controlador, manejo de errores, pruebas y documentación.
+  - Antes de cada archivo indica su ruta con "// Archivo: ruta".
+
+prompts:
+  - name: crud
+    description: Genera un CRUD completo por capas a partir de una descripción del modelo
+    prompt: |
+      Genera un CRUD completo y listo para compilar para la siguiente entidad.
+      Si no indico tecnología, usa Java 17 + Spring Boot 3 + Spring Data JPA + H2 + Bean Validation + springdoc-openapi.
+
+      Entregables, cada uno precedido por "// Archivo: <ruta>":
+      1. Entidad/modelo con validaciones.
+      2. DTOs de request y response + mapper.
+      3. Repositorio.
+      4. Servicio (interfaz + implementación) con excepción NotFound.
+      5. Controlador REST: GET lista (paginada), GET por id, POST, PUT, DELETE, con anotaciones OpenAPI.
+      6. Manejador global de errores.
+      7. Pruebas unitarias del servicio y del controlador.
+      8. README del módulo con endpoints y ejemplos curl.
+
+      Entidad:
+  - name: documentar
+    description: Documenta el código seleccionado
+    prompt: |
+      Agrega documentación (JavaDoc/docstrings) clara y concisa al código seleccionado, sin cambiar su lógica.
+  - name: tests
+    description: Genera pruebas unitarias para el código seleccionado
+    prompt: |
+      Escribe pruebas unitarias completas para el código seleccionado, cubriendo casos felices, bordes y errores.
