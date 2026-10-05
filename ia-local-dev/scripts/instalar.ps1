@@ -6,8 +6,25 @@ $root = Split-Path -Parent $PSScriptRoot
 
 Write-Host "== 1/5 Ollama ==" -ForegroundColor Cyan
 if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
-    winget install --id Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        winget install --id Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
+    } else {
+        # Sin winget (comun en equipos corporativos): instalador oficial, por usuario y sin admin.
+        $setup = "$env:TEMP\OllamaSetup.exe"
+        Write-Host "winget no disponible; descargando instalador oficial..."
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        Invoke-WebRequest -Uri "https://ollama.com/download/OllamaSetup.exe" -OutFile $setup -UseBasicParsing
+        Start-Process -FilePath $setup -ArgumentList "/VERYSILENT", "/NORESTART" -Wait
+    }
     $env:Path += ";$env:LOCALAPPDATA\Programs\Ollama"
+    if (-not (Get-Command ollama -ErrorAction SilentlyContinue)) {
+        throw "No se pudo instalar Ollama. Instalalo manualmente desde https://ollama.com/download y vuelve a ejecutar este script."
+    }
+    # El servidor de Ollama debe estar corriendo antes de descargar modelos.
+    if (-not (Get-Process ollama -ErrorAction SilentlyContinue)) {
+        Start-Process ollama -ArgumentList "serve" -WindowStyle Hidden
+        Start-Sleep -Seconds 5
+    }
 } else { Write-Host "Ollama ya instalado." }
 
 Write-Host "== 2/5 Descargando modelos (~6 GB, tarda segun tu red) ==" -ForegroundColor Cyan
